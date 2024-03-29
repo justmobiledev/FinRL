@@ -8,7 +8,7 @@ from finrl.config_tickers import NAS_100_TICKER  # Import NASDAQ 100 tickers
 from finrl.config_tickers import DOW_30_TICKER
 import datetime
 from pandas.tseries.offsets import BDay, DateOffset
-import pandas as pd
+import matplotlib.pyplot as plt
 
 # Set Alpaca base URLs
 ALPACA_DATA_API_BASE_URL = "https://data.alpaca.markets/v2"
@@ -65,6 +65,34 @@ def configure_indicators(indicators):
     return indicator_list
 
 
+def plot_performance(returns_erl, returns_dia):
+    plt.figure(dpi=1000)
+    plt.grid()
+    plt.grid(which="minor", axis="y")
+    plt.title("Stock Trading (Paper trading)", fontsize=20)
+    plt.plot(returns_erl, label="ElegantRL Agent", color="red")
+    # plt.plot(returns_sb3, label = 'Stable-Baselines3 Agent', color = 'blue' )
+    # plt.plot(returns_rllib, label = 'RLlib Agent', color = 'green')
+    plt.plot(returns_dia, label="DJIA", color="grey")
+    plt.ylabel("Return", fontsize=16)
+    plt.xlabel("Year 2021", fontsize=16)
+    plt.xticks(size=14)
+    plt.yticks(size=14)
+    """
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(ticker.MultipleLocator(78))
+    ax.xaxis.set_minor_locator(ticker.MultipleLocator(6))
+    ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.005))
+    ax.yaxis.set_major_formatter(ticker.PercentFormatter(xmax=1, decimals=2))
+    ax.xaxis.set_major_formatter(
+        ticker.FixedFormatter(["", "10-19", "", "10-20", "", "10-21", "", "10-22"])
+    )
+    """
+    plt.legend(fontsize=10.5)
+    plt.tight_layout()
+    plt.savefig("papertrading_stock.png")
+    plt.close()
+
 ################################################################
 # MAIN
 ################################################################
@@ -94,17 +122,17 @@ train_full_start_date_str, \
 train_full_end_date_str = calculate_start_end_dates()
 
 # Configure indicators
-# indicator_list = configure_indicators(INDICATORS)
-indicator_list = INDICATORS
+indicator_list = configure_indicators(INDICATORS)
+#indicator_list = INDICATORS
 
 # Define ticker list
-ticker_list = ['AMZN', 'AAPL', 'TSLA', 'MSFT'] #  NAS_100_TICKER
-#ticker_list = DOW_30_TICKER
+#ticker_list = ['AMZN', 'AAPL', 'TSLA', 'MSFT'] #  NAS_100_TICKER
+ticker_list = DOW_30_TICKER
 
 #  Configuration
 data_source = "alpaca"
 model_name = "ppo"
-time_interval = "15Min"
+time_interval = "1Min"
 drl_lib = "elegantrl"
 cwd = "./papertrading_erl"  # Current working directory
 break_step = 1e5
@@ -172,11 +200,11 @@ train(
     break_step=break_step,
 )
 
-
 action_dim = len(ticker_list)
 state_dim = (
-    1 + 2 + 3 * action_dim + len(indicator_list) * action_dim
+    1 + 2 + 3 * action_dim + len(INDICATORS) * action_dim
 )  # Calculate the DRL state dimension manually for paper trading. amount + (turbulence, turbulence_bool) + (price, shares, cd (holding time)) * stock_dim + tech_dim
+
 
 paper_trading_erl = PaperTradingAlpaca(
     ticker_list=DOW_30_TICKER,
@@ -196,5 +224,28 @@ paper_trading_erl = PaperTradingAlpaca(
 )
 
 paper_trading_erl.run()
+
+"""
+# Check Portfolio Performance
+df_erl, cumu_erl = alpaca_history(
+    key=ALPACA_DATA_API_KEY,
+    secret=ALPACA_DATA_API_SECRET,
+    url=ALPACA_DATA_API_BASE_URL,
+    start="2022-09-01",  # must be within 1 month
+    end="2022-09-12",
+)  # change the date if error occurs
+
+df_djia, cumu_djia = DIA_history(start="2022-09-01")
+returns_erl = cumu_erl - 1
+returns_dia = cumu_djia - 1
+returns_dia = returns_dia[: returns_erl.shape[0]]
+
+
+# Plot performance
+plot_performance(returns_erl, returns_dia)
+"""
+
+
+
 
 print("All done!")
